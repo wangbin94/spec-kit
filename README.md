@@ -135,6 +135,7 @@ Want to see Spec Kit in action? Watch our [video overview](https://www.youtube.c
 | [Roo Code](https://roocode.com/)                          | ✅ |                                                   |
 | [Amazon Q Developer CLI](https://aws.amazon.com/developer/learning/q-developer-cli/) | ⚠️ | Amazon Q Developer CLI [does not support](https://github.com/aws/amazon-q-developer-cli/issues/3064) custom arguments for slash commands. |
 | [Codex CLI](https://github.com/openai/codex)              | ⚠️ | Codex [does not support](https://github.com/openai/codex/issues/2890) custom arguments for slash commands.  |
+| [iFlow CLI](https://github.com/wangbin94/iflow)          | ✅ | Based on Gemini CLI |
 
 ## 🔧 Specify CLI Reference
 
@@ -176,6 +177,9 @@ specify init my-project --ai cursor
 
 # Initialize with Windsurf support
 specify init my-project --ai windsurf
+
+# Initialize with iFlow support
+specify init my-project --ai iflow
 
 # Initialize with PowerShell scripts (Windows/cross-platform)
 specify init my-project --ai copilot --script ps
@@ -222,6 +226,62 @@ After running `specify init`, your AI coding agent will have access to these sla
 | Variable         | Description                                                                                    |
 |------------------|------------------------------------------------------------------------------------------------|
 | `SPECIFY_FEATURE` | Override feature detection for non-Git repositories. Set to the feature directory name (e.g., `001-photo-albums`) to work on a specific feature when not using Git branches.<br/>**Must be set in the context of the agent you're working with prior to using `/plan` or follow-up commands. |
+| `SPECIFY_TEMPLATE_SOURCE` | Override template source for `specify init`.<br/>• Set to a local directory path (e.g., `/path/to/.genreleases`) to use local template bundles<br/>• Set to a GitHub repository URL (e.g., `https://github.com/user/repo[@ref]`) to use a custom repository<br/>• When unset, defaults to the official `github/spec-kit` repository latest release |
+
+### Using Custom Template Sources
+
+The `SPECIFY_TEMPLATE_SOURCE` environment variable allows you to override the default template source used by `specify init`. This is useful for:
+
+- Using locally modified templates during development
+- Testing custom template variations
+- Using templates from a fork or custom repository
+- Working offline with pre-downloaded templates
+
+#### Local Template Directory
+
+Use a local template directory to work offline or with custom templates:
+
+```bash
+# Build your template bundles locally (from the spec-kit repository)
+./.github/workflows/scripts/create-release-packages.sh v0.0.18
+
+# Use the local template directory (init will automatically pick the right template based on --ai)
+export SPECIFY_TEMPLATE_SOURCE=/path/to/spec-kit/.genreleases
+specify init my-project --ai claude
+```
+
+#### Custom GitHub Repository
+
+Use templates from a fork or custom repository:
+
+```bash
+# Use the latest release from a custom repository
+export SPECIFY_TEMPLATE_SOURCE=https://github.com/yourusername/spec-kit-fork
+specify init my-project --ai claude
+
+# Use a specific tag or branch from a custom repository
+export SPECIFY_TEMPLATE_SOURCE=https://github.com/yourusername/spec-kit-fork@v0.0.18-custom
+specify init my-project --ai claude
+```
+
+#### Workflow for Custom Template Development
+
+1. **Fork the spec-kit repository** and make your customizations
+2. **Build your template bundles**:
+   ```bash
+   git clone https://github.com/yourusername/spec-kit-fork.git
+   cd spec-kit-fork
+   ./.github/workflows/scripts/create-release-packages.sh v0.0.18-custom
+   ```
+3. **Use your custom templates**:
+   ```bash
+   # Point to the directory containing all template bundles
+   export SPECIFY_TEMPLATE_SOURCE=/path/to/spec-kit-fork/.genreleases
+   specify init my-project --ai claude
+   
+   # The init command will automatically select the correct template based on --ai and script type
+   specify init my-project --ai gemini --script ps
+   ```
 
 ## 📚 Core philosophy
 

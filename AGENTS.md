@@ -39,6 +39,7 @@ Specify supports multiple AI agents by generating agent-specific command files a
 | **opencode** | `.opencode/command/` | Markdown | `opencode` | opencode CLI |
 | **Windsurf** | `.windsurf/workflows/` | Markdown | N/A (IDE-based) | Windsurf IDE workflows |
 | **Amazon Q Developer CLI** | `.amazonq/prompts/` | Markdown | `q` | Amazon Q Developer CLI |
+| **iFlow CLI** | `.iflow/commands/` | TOML | N/A | iFlow CLI (based on Gemini CLI) |
 
 
 ### Step-by-Step Integration Guide
@@ -201,6 +202,7 @@ Require a command-line tool to be installed:
 - **Cursor**: `cursor-agent` CLI
 - **Qwen Code**: `qwen` CLI
 - **opencode**: `opencode` CLI
+- **iFlow CLI**: Based on Gemini CLI
 
 ### IDE-Based Agents
 Work within integrated development environments:
@@ -221,7 +223,7 @@ Command content with {SCRIPT} and $ARGUMENTS placeholders.
 ```
 
 ### TOML Format
-Used by: Gemini, Qwen
+Used by: Gemini, Qwen, iFlow
 
 ```toml
 description = "Command description"
