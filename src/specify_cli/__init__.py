@@ -435,14 +435,88 @@ def init_git_repo(project_path: Path, quiet: bool = False) -> bool:
 
 
 def download_template_from_github(ai_assistant: str, download_dir: Path, *, script_type: str = "sh", verbose: bool = True, show_progress: bool = True, client: httpx.Client = None, debug: bool = False, github_token: str = None) -> Tuple[Path, dict]:
+    # Check for template source override
+    template_source = os.getenv("SPECIFY_TEMPLATE_SOURCE")
+    
+    # If template_source is set and points to a local directory, find the matching template
+    if template_source and template_source.startswith(("file://", "/")):
+        # Remove file:// prefix if present
+        local_path = template_source[7:] if template_source.startswith("file://") else template_source
+        local_dir = Path(local_path)
+        
+        if not local_dir.exists():
+            console.print(f"[red]Error:[/red] Local template directory not found: {local_dir}")
+            raise typer.Exit(1)
+        
+        if not local_dir.is_dir():
+            console.print(f"[red]Error:[/red] Template source must be a directory, not a file: {local_dir}")
+            raise typer.Exit(1)
+        
+        if verbose:
+            console.print(f"[cyan]Searching for template in directory:[/cyan] {local_dir}")
+        
+        # Expected pattern: spec-kit-template-{ai_assistant}-{script_type}-{version}.zip
+        pattern = f"spec-kit-template-{ai_assistant}-{script_type}-*.zip"
+        matching_files = list(local_dir.glob(pattern))
+        
+        if not matching_files:
+            console.print(f"[red]Error:[/red] No matching template found for [bold]{ai_assistant}[/bold] with script type [bold]{script_type}[/bold] in {local_dir}")
+            console.print(f"[red]Expected pattern:[/red] {pattern}")
+            raise typer.Exit(1)
+        
+        # Use the first matching file (there should typically be only one)
+        local_zip = matching_files[0]
+        
+        if verbose:
+            console.print(f"[cyan]Found local template:[/cyan] {local_zip.name}")
+            console.print(f"[cyan]Size:[/cyan] {local_zip.stat().st_size:,} bytes")
+        
+        # Copy to download directory for consistent processing
+        filename = local_zip.name
+        zip_path = download_dir / filename
+        shutil.copy2(local_zip, zip_path)
+        
+        metadata = {
+            "filename": filename,
+            "size": local_zip.stat().st_size,
+            "release": "local",
+            "asset_url": f"file://{local_zip.absolute()}"
+        }
+        return zip_path, metadata
+    
+    # Parse custom GitHub repository if specified
     repo_owner = "github"
     repo_name = "spec-kit"
+    release_ref = "latest"
+    
+    if template_source and template_source.startswith("https://github.com/"):
+        # Parse URL like https://github.com/<user>/<repo>[@<ref>]
+        url_parts = template_source.replace("https://github.com/", "").split("@")
+        repo_parts = url_parts[0].split("/")
+        
+        if len(repo_parts) >= 2:
+            repo_owner = repo_parts[0]
+            repo_name = repo_parts[1]
+            
+            if len(url_parts) > 1:
+                release_ref = url_parts[1]
+        
+        if verbose:
+            console.print(f"[cyan]Using custom repository:[/cyan] {repo_owner}/{repo_name}")
+            if release_ref != "latest":
+                console.print(f"[cyan]Release ref:[/cyan] {release_ref}")
+    
     if client is None:
         client = httpx.Client(verify=ssl_context)
     
     if verbose:
-        console.print("[cyan]Fetching latest release information...[/cyan]")
-    api_url = f"https://api.github.com/repos/{repo_owner}/{repo_name}/releases/latest"
+        console.print("[cyan]Fetching release information...[/cyan]")
+    
+    # Determine API URL based on whether we're using a custom repo and release ref
+    if release_ref == "latest":
+        api_url = f"https://api.github.com/repos/{repo_owner}/{repo_name}/releases/latest"
+    else:
+        api_url = f"https://api.github.com/repos/{repo_owner}/{repo_name}/releases/tags/{release_ref}"
     
     try:
         response = client.get(
@@ -540,7 +614,7 @@ def download_template_from_github(ai_assistant: str, download_dir: Path, *, scri
     metadata = {
         "filename": filename,
         "size": file_size,
-        "release": release_data["tag_name"],
+        "release": release_data['tag_name'],
         "asset_url": download_url
     }
     return zip_path, metadata
