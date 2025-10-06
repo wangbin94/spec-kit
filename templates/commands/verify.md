@@ -159,6 +159,10 @@ Execution steps:
       * "Verification mostly successful. N/M fixes verified.".
       * "Minor issues remain - may proceed or fix for polish.".
 
+10. **Refresh Portfolio Snapshot**:
+    -   Run `scripts/bash/portfolio.sh` (or `scripts/powershell/portfolio.ps1` on Windows) from the repo root to update `.specify/state/features.yaml`.
+    -   Ensure the feature now reflects `verified` status (or captures any regressions) in the portfolio registry.
+
 Behavior rules:
 -   Re-run verification from scratch - don't trust previous claims.
 -   Always run tests to catch regressions.

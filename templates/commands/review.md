@@ -125,6 +125,10 @@ Execution steps:
     -   If yes: Explain that /fix command should be run to systematically address findings.
     -   If selective: Prompt for specific finding IDs to address.
 
+10. **Refresh Portfolio Snapshot**:
+    -   Run `scripts/bash/portfolio.sh` (or `scripts/powershell/portfolio.ps1` on Windows) from the repo root to update `.specify/state/features.yaml`.
+    -   Confirm the feature now appears with the correct status and findings counts.
+
 Behavior rules:
 -   Be constructive. The goal is to improve the code, not just criticize it.
 -   Base the review only on the files you have read.

@@ -124,6 +124,10 @@ Execution steps:
       * "Modified N files. Consider committing changes before running /verify."
     -   Recommend: "Next: /verify to validate fixes"
 
+10. **Refresh Portfolio Snapshot**:
+    -   Run `scripts/bash/portfolio.sh` (or `scripts/powershell/portfolio.ps1` on Windows) from the repo root to update `.specify/state/features.yaml`.
+    -   Verify the feature status progresses appropriately (e.g., from `reviewing` to `fixing`).
+
 Behavior rules:
 -   Apply fixes incrementally - one file at a time
 -   Always preserve existing functionality
