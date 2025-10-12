@@ -155,6 +155,7 @@ The `specify` command supports the following options:
 | `<project-name>`       | Argument | Name for your new project directory (optional if using `--here`, or use `.` for current directory) |
 | `--ai`                 | Option   | AI assistant to use: `claude`, `gemini`, `copilot`, `cursor`, `qwen`, `opencode`, `codex`, `windsurf`, `kilocode`, `auggie`, `roo`, or `q` |
 | `--script`             | Option   | Script variant to use: `sh` (bash/zsh) or `ps` (PowerShell)                 |
+| `--profile`, `-p`      | Option   | Template profile: `full` (default, complete artifacts) or `lite` (lean prompts + minimal artifacts) |
 | `--ignore-agent-tools` | Flag     | Skip checks for AI agent tools like Claude Code                             |
 | `--no-git`             | Flag     | Skip git repository initialization                                          |
 | `--here`               | Flag     | Initialize project in the current directory instead of creating a new one   |
@@ -180,6 +181,9 @@ specify init my-project --ai windsurf
 
 # Initialize with iFlow support
 specify init my-project --ai iflow
+
+# Initialize with the Lite profile (minimal artifacts + prompts)
+specify init my-project --profile lite
 
 # Initialize with PowerShell scripts (Windows/cross-platform)
 specify init my-project --ai copilot --script ps
@@ -207,6 +211,13 @@ specify init my-project --ai claude --github-token ghp_your_token_here
 specify check
 ```
 
+### Template Profiles
+
+- **full** (default): Copies the complete Spec Kit workflow, including constitution, research/data-model/quickstart templates, and comprehensive plan/tasks prompts. Use this when you want the full Spec-Driven Development experience.
+- **lite**: Focuses on the core `/specify → /plan → /tasks` loop with lean prompts and artifacts. It swaps in a lightweight plan template, a shorter tasks template, and a concise working agreement. Ideal when you need faster iterations or want to save tokens, while still keeping structured guardrails.
+
+You can switch profiles on a per-project basis when running `specify init`. Existing projects stay on their chosen profile.
+
 ### Available Slash Commands
 
 After running `specify init`, your AI coding agent will have access to these slash commands for structured development:
@@ -219,6 +230,8 @@ After running `specify init`, your AI coding agent will have access to these sla
 | `/plan`         | Create technical implementation plans with your chosen tech stack     |
 | `/tasks`        | Generate actionable task lists for implementation                     |
 | `/analyze`      | Cross-artifact consistency & coverage analysis (run after /tasks, before /implement) |
+| `/handoff`      | Capture end-of-session notes (status, blockers, next steps) for the next `/resume` run (auto-detects context; works with or without Spec Kit) |
+| `/resume`       | Rehydrate project context at the start of a session, blending handoff notes, Git status, and Spec Kit artifacts when available (supports `context=<name>` or `feature=<slug>` override) |
 | `/implement`    | Execute all tasks to build the feature according to the plan         |
 
 ### Environment Variables

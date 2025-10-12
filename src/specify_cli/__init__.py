@@ -32,6 +32,7 @@ import tempfile
 import shutil
 import shlex
 import json
+import textwrap
 from pathlib import Path
 from typing import Optional, Tuple
 
@@ -82,6 +83,104 @@ AI_CHOICES = {
 }
 # Add script type choices
 SCRIPT_TYPE_CHOICES = {"sh": "POSIX Shell (bash/zsh)", "ps": "PowerShell"}
+PROFILE_CHOICES = {
+    "full": "Full Spec Kit (complete artifacts)",
+    "lite": "Lite (lean artifacts and prompts)",
+}
+
+AGENT_COMMAND_SPECS = {
+    "claude": {
+        "dir": ".claude/commands",
+        "plan": "plan.md",
+        "tasks": "tasks.md",
+        "format": "md",
+        "arg_token": "$ARGUMENTS",
+    },
+    "cursor": {
+        "dir": ".cursor/commands",
+        "plan": "plan.md",
+        "tasks": "tasks.md",
+        "format": "md",
+        "arg_token": "$ARGUMENTS",
+    },
+    "opencode": {
+        "dir": ".opencode/command",
+        "plan": "plan.md",
+        "tasks": "tasks.md",
+        "format": "md",
+        "arg_token": "$ARGUMENTS",
+    },
+    "windsurf": {
+        "dir": ".windsurf/workflows",
+        "plan": "plan.md",
+        "tasks": "tasks.md",
+        "format": "md",
+        "arg_token": "$ARGUMENTS",
+    },
+    "kilocode": {
+        "dir": ".kilocode/workflows",
+        "plan": "plan.md",
+        "tasks": "tasks.md",
+        "format": "md",
+        "arg_token": "$ARGUMENTS",
+    },
+    "auggie": {
+        "dir": ".augment/commands",
+        "plan": "plan.md",
+        "tasks": "tasks.md",
+        "format": "md",
+        "arg_token": "$ARGUMENTS",
+    },
+    "roo": {
+        "dir": ".roo/commands",
+        "plan": "plan.md",
+        "tasks": "tasks.md",
+        "format": "md",
+        "arg_token": "$ARGUMENTS",
+    },
+    "q": {
+        "dir": ".amazonq/prompts",
+        "plan": "plan.md",
+        "tasks": "tasks.md",
+        "format": "md",
+        "arg_token": "$ARGUMENTS",
+    },
+    "codex": {
+        "dir": ".codex/prompts",
+        "plan": "plan.md",
+        "tasks": "tasks.md",
+        "format": "md",
+        "arg_token": "$ARGUMENTS",
+    },
+    "copilot": {
+        "dir": ".github/prompts",
+        "plan": "plan.prompt.md",
+        "tasks": "tasks.prompt.md",
+        "format": "md",
+        "arg_token": "$ARGUMENTS",
+    },
+    "gemini": {
+        "dir": ".gemini/commands",
+        "plan": "plan.toml",
+        "tasks": "tasks.toml",
+        "format": "toml",
+        "arg_token": "{{args}}",
+    },
+    "qwen": {
+        "dir": ".qwen/commands",
+        "plan": "plan.toml",
+        "tasks": "tasks.toml",
+        "format": "toml",
+        "arg_token": "{{args}}",
+    },
+    "iflow": {
+        "dir": ".iflow/commands",
+        "plan": "plan.toml",
+        "tasks": "tasks.toml",
+        "format": "toml",
+        "arg_token": "{{args}}",
+    },
+}
 
 # Claude CLI local installation path after migrate-installer
 CLAUDE_LOCAL_PATH = Path.home() / ".claude" / "local" / "claude"
@@ -823,11 +922,224 @@ def ensure_executable_scripts(project_path: Path, tracker: StepTracker | None = 
             for f in failures:
                 console.print(f"  - {f}")
 
+
+def _copy_profile_overlay(overlay_root: Path, project_path: Path) -> int:
+    """Copy overlay files from profile directory into project path."""
+    if not overlay_root.is_dir():
+        return 0
+    copied = 0
+    for src in overlay_root.rglob("*"):
+        if src.is_dir():
+            continue
+        rel = src.relative_to(overlay_root)
+        dest = project_path / rel
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(src, dest)
+        copied += 1
+    return copied
+
+
+def _lite_plan_markdown(script_cmd: str, arg_token: str) -> str:
+    body = f"""
+---
+description: Create a lean implementation plan focusing on immediate build steps (Lite profile).
+---
+
+The user input to you can be provided directly by the agent or as a command argument - you **MUST** consider it before proceeding with the prompt (if not empty).
+
+User input:
+
+{arg_token}
+
+Follow this lightweight flow:
+
+1. Run `{script_cmd}` from the repository root to copy the lite plan template into place and capture FEATURE_SPEC and IMPL_PLAN paths from JSON output.
+2. Review the feature specification for the primary goal, critical behaviors, and any unresolved clarifications (keep the list small).
+3. Populate `plan.md` using the lite template sections:
+   - Update the Summary with outcomes, actors, and must-have behaviors.
+   - Fill in Technical Snapshot with concrete language/framework/testing decisions.
+   - Outline Implementation & Work Breakdown with referenced directories or modules.
+   - Capture Validation Strategy plus Risks/Follow-ups as concise bullets.
+4. Keep writing tight (bullets or short sentences) and do **not** generate extra artifacts like `research.md`, `data-model.md`, `contracts/`, or `quickstart.md`.
+5. Respond with a brief status message that highlights key decisions, clarifications still open, and the recommended next command (typically `/tasks`).
+
+Context for prioritization: {arg_token}
+"""
+    return textwrap.dedent(body).strip() + "\n"
+
+
+def _lite_plan_toml(script_cmd: str, arg_token: str) -> str:
+    prompt = f"""
+The user input to you can be provided directly by the agent or as a command argument - you **MUST** consider it before proceeding with the prompt (if not empty).
+
+User input:
+
+{arg_token}
+
+Follow this lightweight flow:
+
+1. Run `{script_cmd}` from the repository root to copy the lite plan template into place and capture FEATURE_SPEC and IMPL_PLAN paths from JSON output.
+2. Review the feature specification for the primary goal, critical behaviors, and any unresolved clarifications (keep the list small).
+3. Populate `plan.md` using the lite template sections:
+   - Update the Summary with outcomes, actors, and must-have behaviors.
+   - Fill in Technical Snapshot with concrete language/framework/testing decisions.
+   - Outline Implementation & Work Breakdown with referenced directories or modules.
+   - Capture Validation Strategy plus Risks/Follow-ups as concise bullets.
+4. Keep writing tight (bullets or short sentences) and do **not** generate extra artifacts like `research.md`, `data-model.md`, `contracts/`, or `quickstart.md`.
+5. Respond with a brief status message that highlights key decisions, clarifications still open, and the recommended next command (typically `/tasks`).
+
+Context for prioritization: {arg_token}
+"""
+    return (
+        'description = "Create a lean implementation plan focusing on immediate build steps (Lite profile)."\n\n'
+        f'prompt = """\n{textwrap.dedent(prompt).strip()}\n"""\n'
+    )
+
+
+def _lite_tasks_markdown(precheck_cmd: str, arg_token: str) -> str:
+    body = f"""
+---
+description: Generate a concise, dependency-aware tasks.md using the lite workflow.
+---
+
+The user input to you can be provided directly by the agent or as a command argument - you **MUST** consider it before proceeding with the prompt (if not empty).
+
+User input:
+
+{arg_token}
+
+Follow this lightweight flow:
+
+1. Run `{precheck_cmd}` from the repository root to gather FEATURE_DIR and available documents (plan.md is required; other docs are optional).
+2. Read plan.md and extract:
+   - Summary goals and technical decisions.
+   - Work Breakdown phases and validation strategy.
+   - Risks or follow-ups that should turn into tasks.
+3. Create or overwrite FEATURE_DIR/tasks.md using the lite template:
+   - Aim for 8–15 tasks total, grouped into Setup, Tests, Build, and Validation/Polish.
+   - Mark `[P]` only when tasks touch independent files or services.
+   - Reference exact files/modules so another teammate (or agent) can execute immediately.
+4. Ensure early tasks focus on failing tests or verification before implementation.
+5. Finish with a short status message summarizing task coverage and any blockers.
+
+Context for prioritization: {arg_token}
+"""
+    return textwrap.dedent(body).strip() + "\n"
+
+
+def _lite_tasks_toml(precheck_cmd: str, arg_token: str) -> str:
+    prompt = f"""
+The user input to you can be provided directly by the agent or as a command argument - you **MUST** consider it before proceeding with the prompt (if not empty).
+
+User input:
+
+{arg_token}
+
+Follow this lightweight flow:
+
+1. Run `{precheck_cmd}` from the repository root to gather FEATURE_DIR and available documents (plan.md is required; other docs are optional).
+2. Read plan.md and extract:
+   - Summary goals and technical decisions.
+   - Work Breakdown phases and validation strategy.
+   - Risks or follow-ups that should turn into tasks.
+3. Create or overwrite FEATURE_DIR/tasks.md using the lite template:
+   - Aim for 8–15 tasks total, grouped into Setup, Tests, Build, and Validation/Polish.
+   - Mark `[P]` only when tasks touch independent files or services.
+   - Reference exact files/modules so another teammate (or agent) can execute immediately.
+4. Ensure early tasks focus on failing tests or verification before implementation.
+5. Finish with a short status message summarizing task coverage and any blockers.
+
+Context for prioritization: {arg_token}
+"""
+    return (
+        'description = "Generate a concise, dependency-aware tasks.md using the lite workflow."\n\n'
+        f'prompt = """\n{textwrap.dedent(prompt).strip()}\n"""\n'
+    )
+
+
+def _generate_lite_command_content(
+    command: str,
+    agent_format: str,
+    script_type: str,
+    arg_token: str,
+) -> str | None:
+    if command == "plan":
+        script_cmd = (
+            ".specify/scripts/bash/setup-plan.sh --json"
+            if script_type == "sh"
+            else ".specify/scripts/powershell/setup-plan.ps1 -Json"
+        )
+        if agent_format == "md":
+            return _lite_plan_markdown(script_cmd, arg_token)
+        if agent_format == "toml":
+            return _lite_plan_toml(script_cmd, arg_token)
+    elif command == "tasks":
+        precheck_cmd = (
+            ".specify/scripts/bash/check-prerequisites.sh --json --include-tasks"
+            if script_type == "sh"
+            else ".specify/scripts/powershell/check-prerequisites.ps1 -Json -IncludeTasks"
+        )
+        if agent_format == "md":
+            return _lite_tasks_markdown(precheck_cmd, arg_token)
+        if agent_format == "toml":
+            return _lite_tasks_toml(precheck_cmd, arg_token)
+    return None
+
+
+def _apply_lite_agent_commands(project_path: Path, selected_ai: str, script_type: str) -> int:
+    """Overwrite plan/tasks commands with lite variants when possible."""
+    spec = AGENT_COMMAND_SPECS.get(selected_ai)
+    if not spec:
+        return 0
+    base_dir = project_path / spec["dir"]
+    if not base_dir.is_dir():
+        return 0
+    updated = 0
+    for command_name in ("plan", "tasks"):
+        filename = spec.get(command_name)
+        if not filename:
+            continue
+        target_file = base_dir / filename
+        if not target_file.exists():
+            continue
+        content = _generate_lite_command_content(
+            command_name,
+            agent_format=spec["format"],
+            script_type=script_type,
+            arg_token=spec["arg_token"],
+        )
+        if content:
+            target_file.write_text(content, encoding="utf-8")
+            updated += 1
+    return updated
+
+
+def apply_profile(project_path: Path, profile: str, selected_ai: str, script_type: str, tracker: StepTracker | None = None) -> None:
+    """Apply profile-specific adjustments after template extraction."""
+    if profile != "lite":
+        if tracker:
+            tracker.skip("profile", "full profile")
+        return
+    if tracker:
+        tracker.start("profile")
+    overlay_root = Path(__file__).resolve().parent / "profiles" / "lite"
+    copied = _copy_profile_overlay(overlay_root, project_path)
+    updated_commands = _apply_lite_agent_commands(project_path, selected_ai, script_type)
+    detail_parts = []
+    if copied:
+        detail_parts.append(f"{copied} files")
+    if updated_commands:
+        detail_parts.append(f"{updated_commands} commands")
+    detail = ", ".join(detail_parts) if detail_parts else "no changes"
+    if tracker:
+        tracker.complete("profile", detail)
+
 @app.command()
 def init(
     project_name: str = typer.Argument(None, help="Name for your new project directory (optional if using --here, or use '.' for current directory)"),
     ai_assistant: str = typer.Option(None, "--ai", help="AI assistant to use: claude, gemini, copilot, cursor, qwen, opencode, codex, windsurf, kilocode, auggie or q"),
     script_type: str = typer.Option(None, "--script", help="Script type to use: sh or ps"),
+    profile: str = typer.Option("full", "--profile", "-p", help="Template profile to use (full or lite)"),
     ignore_agent_tools: bool = typer.Option(False, "--ignore-agent-tools", help="Skip checks for AI agent tools like Claude Code"),
     no_git: bool = typer.Option(False, "--no-git", help="Skip git repository initialization"),
     here: bool = typer.Option(False, "--here", help="Initialize project in the current directory instead of creating a new one"),
@@ -859,6 +1171,7 @@ def init(
         specify init my-project --ai windsurf
         specify init my-project --ai auggie
         specify init my-project --ai q
+        specify init my-project --profile lite
         specify init --ignore-agent-tools my-project
         specify init . --ai claude         # Initialize in current directory
         specify init .                     # Initialize in current directory (interactive AI selection)
@@ -917,6 +1230,11 @@ def init(
             console.print(error_panel)
             raise typer.Exit(1)
     
+    profile = (profile or "full").lower()
+    if profile not in PROFILE_CHOICES:
+        console.print(f"[red]Error:[/red] Invalid profile '{profile}'. Choose from: {', '.join(PROFILE_CHOICES.keys())}")
+        raise typer.Exit(1)
+
     # Create formatted setup info with column alignment
     current_dir = Path.cwd()
     
@@ -930,6 +1248,7 @@ def init(
     # Add target path only if different from working dir
     if not here:
         setup_lines.append(f"{'Target Path':<15} [dim]{project_path}[/dim]")
+    setup_lines.append(f"{'Profile':<15} [dim]{profile}[/dim] ({PROFILE_CHOICES[profile]})")
     
     console.print(Panel("\n".join(setup_lines), border_style="cyan", padding=(1, 2)))
     
@@ -1020,6 +1339,7 @@ def init(
     
     console.print(f"[cyan]Selected AI assistant:[/cyan] {selected_ai}")
     console.print(f"[cyan]Selected script type:[/cyan] {selected_script}")
+    console.print(f"[cyan]Selected profile:[/cyan] {profile} ({PROFILE_CHOICES[profile]})")
     
     # Download and set up project
     # New tree-based progress (no emojis); include earlier substeps
@@ -1040,6 +1360,7 @@ def init(
         ("zip-list", "Archive contents"),
         ("extracted-summary", "Extraction summary"),
         ("chmod", "Ensure scripts executable"),
+        ("profile", "Apply profile adjustments"),
         ("cleanup", "Cleanup"),
         ("git", "Initialize git repository"),
         ("final", "Finalize")
@@ -1059,6 +1380,9 @@ def init(
 
             # Ensure scripts are executable (POSIX)
             ensure_executable_scripts(project_path, tracker=tracker)
+
+            # Apply profile overlays (e.g., lite templates)
+            apply_profile(project_path, profile, selected_ai, selected_script, tracker=tracker)
 
             # Git step
             if not no_git:
