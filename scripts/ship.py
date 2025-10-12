@@ -11,7 +11,6 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import List, Set
-import re
 
 
 SCRIPT_DIR = Path(__file__).resolve().parent
@@ -49,20 +48,31 @@ def run_git(cmd: List[str], cwd: Path) -> subprocess.CompletedProcess[str]:
 
 
 def extract_task_paths(tasks_file: Path) -> Set[str]:
+    """Return a set of repository-relative paths mentioned in tasks.md."""
+
     if not tasks_file.exists():
         return set()
-    pattern = re.compile(r"([A-Za-z0-9_.\-/]+\.[A-Za-z0-9]+)")
-    results: Set[str] = set()
+
+    delimiters = "`'\"()[]:,"
+    candidates: Set[str] = set()
     try:
-        content = tasks_file.read_text(encoding="utf-8", errors="ignore")
+        for raw_line in tasks_file.read_text(encoding="utf-8", errors="ignore").splitlines():
+            line = raw_line.strip()
+            if not line or line.startswith("#"):
+                continue
+            parts = line.replace("\\", "/").split()
+            for part in parts:
+                token = part.strip(delimiters)
+                if not token:
+                    continue
+                if "/" not in token:
+                    continue
+                # treat entries like src/module/ or src/module.py as paths
+                if token.endswith("/") or "." in token:
+                    candidates.add(Path(token.rstrip("/")).as_posix())
     except OSError:
         return set()
-    for line in content.splitlines():
-        for match in pattern.findall(line):
-            cleaned = match.strip().strip('`"\'')
-            if cleaned:
-                results.add(Path(cleaned).as_posix())
-    return results
+    return candidates
 
 
 def collect_git_status(repo_root: Path) -> GitStatus:
